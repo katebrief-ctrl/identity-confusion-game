@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Identity Confusion Tracker</title>
+<style>
+    body {
+        margin: 0;
+        font-family: monospace;
+        background: #0f1115;
+        color: #e6e6e6;
+        text-align: center;
+    }
+
+    h1 {
+        margin-top: 20px;
+        color: #ff4d6d;
+    }
+
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .card {
+        background: #1a1d24;
+        border: 2px solid #2a2f3a;
+        border-radius: 10px;
+        width: 200px;
+        margin: 10px;
+        padding: 15px;
+    }
+
+    .name {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .hearts {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    button {
+        background: #2d3340;
+        color: white;
+        border: none;
+        padding: 5px 8px;
+        margin: 3px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+
+    button:hover {
+        background: #3b4252;
+    }
+
+    .dead {
+        color: #ff4d4d;
+        font-weight: bold;
+    }
+
+    #log {
+        margin-top: 20px;
+        padding: 10px;
+        background: #151820;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: 10px;
+        text-align: left;
+        height: 180px;
+        overflow-y: auto;
+    }
+</style>
+</head>
+<body>
+
+<h1>💀 Identity Confusion Tracker 💀</h1>
+
+<div class="container" id="app"></div>
+
+<h2>📜 Incident Log</h2>
+<div id="log"></div>
+
+<button onclick="resetGame()">Reset All</button>
+
+<script>
+const players = ["Travis", "Aga", "Ada", "Marta"];
+const MAX_LIVES = 5;
+
+let state = {};
+
+function init() {
+    const saved = localStorage.getItem("identityGame");
+    if (saved) {
+        state = JSON.parse(saved);
+    } else {
+        players.forEach(p => state[p] = MAX_LIVES);
+    }
+}
+
+function save() {
+    localStorage.setItem("identityGame", JSON.stringify(state));
+}
+
+function hearts(n) {
+    return "❤️".repeat(Math.max(n,0)) + "🤍".repeat(MAX_LIVES - Math.max(n,0));
+}
+
+function log(msg) {
+    const logBox = document.getElementById("log");
+    const entry = document.createElement("div");
+    entry.textContent = msg;
+    logBox.prepend(entry);
+}
+
+function update() {
+    const app = document.getElementById("app");
+    app.innerHTML = "";
+
+    players.forEach(p => {
+        let lives = state[p];
+        let dead = lives <= 0;
+
+        let card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <div class="name">${p}</div>
+            <div class="hearts">${hearts(lives)}</div>
+            ${dead ? `<div class="dead">💀 ELIMINATED</div>` : ""}
+            
+            <button onclick="misnameKat('${p}')">- Misnamed Kat/Kasia</button>
+            <button onclick="revive('${p}')">+ Revive</button>
+        `;
+
+        app.appendChild(card);
+    });
+}
+
+function misnameKat(p) {
+    if (state[p] <= 0) return;
+
+    state[p]--;
+
+    const events = [
+        "Misnamed Kat as Kasia",
+        "Misnamed Kasia as Kat",
+        "Wrong identity ping (Kat/Kasia mixup)",
+        "Failed to distinguish Kat from Kasia",
+        "@mention drift: wrong Kasia detected"
+    ];
+
+    const msg = events[Math.floor(Math.random() * events.length)];
+    log(`☠️ ${p}: ${msg}`);
+
+    if (state[p] === 0) {
+        log(`💀 ${p} has been eliminated by identity confusion.`);
+    }
+
+    save();
+    update();
+}
+
+function revive(p) {
+    if (state[p] < MAX_LIVES) {
+        state[p]++;
+        log(`❤️ ${p} regained a life`);
+        save();
+        update();
+    }
+}
+
+function resetGame() {
+    players.forEach(p => state[p] = MAX_LIVES);
+    log("🔄 System reset: all identities restored");
+    save();
+    update();
+}
+
+init();
+update();
+</script>
+
+</body>
+</html>
