@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Identity Confusion Tracker (Shared)</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: monospace;
+        background: #0f1115;
+        color: #e6e6e6;
+        text-align: center;
+    }
+
+    h1 {
+        margin-top: 20px;
+        color: #ff4d6d;
+    }
+
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .card {
+        background: #1a1d24;
+        border: 2px solid #2a2f3a;
+        border-radius: 10px;
+        width: 200px;
+        margin: 10px;
+        padding: 15px;
+    }
+
+    .name {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+
+    .hearts {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+
+    button {
+        background: #2d3340;
+        color: white;
+        border: none;
+        padding: 5px 8px;
+        margin: 3px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+    }
+
+    button:hover {
+        background: #3b4252;
+    }
+
+    .dead {
+        color: #ff4d4d;
+        font-weight: bold;
+    }
+
+    #log {
+        margin-top: 20px;
+        padding: 10px;
+        background: #151820;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: 10px;
+        text-align: left;
+        height: 180px;
+        overflow-y: auto;
+    }
+</style>
+</head>
+
+<body>
+
+<h1>💀 Identity Confusion Tracker (LIVE) 💀</h1>
+
+<div class="container" id="app"></div>
+
+<h2>📜 Incident Log</h2>
+<div id="log"></div>
+
+<button onclick="resetGame()">Reset All</button>
+
+<!-- FIREBASE -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  push
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+// 🔥 YOUR FIREBASE CONFIG (yours)
+const firebaseConfig = {
+  apiKey: "AIzaSyBk6b47w-punkRBoeLpJdalucURRXzO5Ks",
+  authDomain: "identity-game-dd23c.firebaseapp.com",
+  projectId: "identity-game-dd23c",
+  storageBucket: "identity-game-dd23c.firebasestorage.app",
+  messagingSenderId: "816129702422",
+  appId: "1:816129702422:web:c4df9387fd2e871bf41337"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const players = ["Travis", "Aga", "Ada", "Marta"];
+const MAX_LIVES = 5;
+
+// init default state (only once if empty)
+set(ref(db, "state/players"), {
+    Travis: 5,
+    Aga: 5,
+    Ada: 5,
+    Marta: 5
+});
+
+function hearts(n) {
+    return "❤️".repeat(Math.max(n,0)) +
+           "🤍".repeat(MAX_LIVES - Math.max(n,0));
+}
+
+function render(state) {
+    const appDiv = document.getElementById("app");
+    appDiv.innerHTML = "";
+
+    players.forEach(p => {
+        let lives = state[p];
+        let dead = lives <= 0;
+
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <div class="name">${p}</div>
+            <div class="hearts">${hearts(lives)}</div>
+            ${dead ? `<div class="dead">💀 ELIMINATED</div>` : ""}
+
+            <button ${dead ? "disabled" : ""} onclick="loseLife('${p}')">
+                - Misnamed Kat/Kasia
+            </button>
+
+            <button onclick="revive('${p}')">
+                + Revive
+            </button>
+        `;
+
+        appDiv.appendChild(card);
+    });
+}
+
+// 🔥 LIVE LISTEN (core upgrade)
+onValue(ref(db, "state/players"), (snapshot) => {
+    const data = snapshot.val();
+    if (data) render(data);
+});
+
+// 💀 lose life
+window.loseLife = function(p) {
+    onValue(ref(db, "state/players"), (snap) => {
+        const data = snap.val();
+        if (!data || data[p] <= 0) return;
+
+        const newVal = {};
+        newVal[p] = data[p] - 1;
+
+        set(ref(db, "state/players/" + p), newVal[p]);
+
+        const events = [
+            "Misnamed Kat as Kasia",
+            "Wrong identity ping",
+            "Kat/Kasia confusion incident",
+            "Identity mismatch detected",
+            "@mention drift error"
+        ];
+
+        push(ref(db, "state/log"), {
+            msg: `☠️ ${p}: ${events[Math.floor(Math.random()*events.length)]}`
+        });
+    }, { onlyOnce: true });
+};
+
+// ❤️ revive
+window.revive = function(p) {
+    onValue(ref(db, "state/players"), (snap) => {
+        const data = snap.val();
+        if (!data || data[p] >= MAX_LIVES) return;
+
+        set(ref(db, "state/players/" + p), data[p] + 1);
+
+        push(ref(db, "state/log"), {
+            msg: `❤️ ${p} regained a life`
+        });
+    }, { onlyOnce: true });
+};
+
+// 🔄 reset
+window.resetGame = function() {
+    set(ref(db, "state/players"), {
+        Travis: 5,
+        Aga: 5,
+        Ada: 5,
+        Marta: 5
+    });
+
+    push(ref(db, "state/log"), {
+        msg: "🔄 System reset: all identities restored"
+    });
+};
+
+// 📜 log listener
+onValue(ref(db, "state/log"), (snapshot) => {
+    const logBox = document.getElementById("log");
+    logBox.innerHTML = "";
+
+    const data = snapshot.val();
+    if (!data) return;
+
+    Object.values(data).forEach(entry => {
+        const div = document.createElement("div");
+        div.textContent = entry.msg;
+        logBox.prepend(div);
+    });
+});
+</script>
+
+</body>
+</html>
